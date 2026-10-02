@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,17 +45,12 @@ function AuthPage() {
     if (mode === "up" && !res.data.session) toast.success("Check your email to confirm your account.");
   }
 
-  async function google() {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/auth" } });
-    if (error) toast.error(error.message);
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm rounded-3xl border bg-card p-6 shadow-sm">
         <p className="text-sm font-semibold text-primary">Plotwise</p>
         <h1 className="mt-1 text-2xl font-bold">{mode === "in" ? "Welcome back" : "Create your garden"}</h1>
-        <Button variant="outline" className="mt-6 w-full" onClick={google}>Continue with Google</Button>
+        <div className="mt-6"><GoogleSignIn /></div>
         <div className="my-4 text-center text-xs text-muted-foreground">or</div>
         <form onSubmit={submit} className="space-y-3">
           <div><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
