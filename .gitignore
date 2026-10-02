@@ -1,0 +1,11 @@
+node_modules
+dist
+.output
+.nitro
+.tanstack
+.wrangler
+.vercel
+.env
+.env.local
+.DS_Store
+supabase/restore-backup.sql

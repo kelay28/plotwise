@@ -1,0 +1,1 @@
+ALTER TABLE public.yard_features ADD COLUMN IF NOT EXISTS icon text;

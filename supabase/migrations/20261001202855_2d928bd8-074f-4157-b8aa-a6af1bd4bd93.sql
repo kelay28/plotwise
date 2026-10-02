@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN yard_w integer, ADD COLUMN yard_h integer;

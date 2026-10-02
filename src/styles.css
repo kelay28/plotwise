@@ -1,0 +1,166 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-soil: var(--soil);
+  --color-earth: var(--earth);
+  --color-wood: var(--wood);
+  --color-pot: var(--pot);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-body);
+}
+
+:root {
+  --radius: 1rem;
+  --background: oklch(0.984 0.004 160);
+  --foreground: oklch(0.28 0.03 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.28 0.03 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.28 0.03 255);
+  --primary: oklch(0.6 0.14 158);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.03 160);
+  --secondary-foreground: oklch(0.38 0.08 160);
+  --muted: oklch(0.96 0.008 250);
+  --muted-foreground: oklch(0.55 0.03 255);
+  --accent: oklch(0.95 0.05 160);
+  --accent-foreground: oklch(0.35 0.09 160);
+  --destructive: oklch(0.58 0.2 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.94 0.07 85);
+  --warning-foreground: oklch(0.5 0.12 60);
+  --ink: oklch(0.21 0.03 265);
+  --ink-foreground: oklch(0.98 0 0);
+  --soil: oklch(0.93 0.03 160);
+  --earth: oklch(0.52 0.06 60);
+  --wood: oklch(0.68 0.09 65);
+  --pot: oklch(0.62 0.11 240);
+  --border: oklch(0.92 0.02 165);
+  --input: oklch(0.9 0.015 200);
+  --ring: oklch(0.6 0.14 158);
+  --chart-1: oklch(0.6 0.14 158);
+  --chart-2: oklch(0.7 0.15 60);
+  --chart-3: oklch(0.55 0.15 25);
+  --chart-4: oklch(0.6 0.1 250);
+  --chart-5: oklch(0.75 0.12 120);
+  --sidebar: oklch(0.984 0.004 160);
+  --sidebar-foreground: oklch(0.28 0.03 255);
+  --sidebar-primary: oklch(0.6 0.14 158);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.05 160);
+  --sidebar-accent-foreground: oklch(0.35 0.09 160);
+  --sidebar-border: oklch(0.92 0.02 165);
+  --sidebar-ring: oklch(0.6 0.14 158);
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Figtree", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-body);
+  }
+  h1, h2, h3 { font-family: var(--font-display); }
+}
+
+/* Bed types: raised = wood plank frame sitting up; in-ground = sunken dashed soil line; pot = round glazed blue rim */
+@utility bed-raised {
+  background: var(--card);
+  box-sizing: content-box;
+  margin: -5px;
+  border: 5px solid transparent;
+  border-image: repeating-linear-gradient(90deg, var(--wood) 0 18px, color-mix(in oklab, var(--wood) 80%, black) 18px 20px) 5;
+  box-shadow: 0 3px 0 color-mix(in oklab, var(--wood) 60%, black), 0 6px 10px -4px rgb(0 0 0 / 0.25);
+}
+@utility bed-ground {
+  background: repeating-linear-gradient(0deg, transparent 0 9px, color-mix(in oklab, var(--earth) 18%, transparent) 9px 10px), var(--card);
+  border: 2px dashed var(--earth);
+  box-sizing: content-box;
+  margin: -2px;
+  box-shadow: inset 0 2px 6px color-mix(in oklab, var(--earth) 35%, transparent);
+}
+@utility bed-pot {
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--card) 60%, color-mix(in oklab, var(--pot) 15%, var(--card)));
+  border: 4px solid var(--pot);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--pot) 40%, white), 0 4px 8px -3px color-mix(in oklab, var(--pot) 60%, transparent);
+}
+
+/* Yard features (non-planting) */
+@utility feat-fence { background: repeating-linear-gradient(90deg, var(--wood) 0 4px, transparent 4px 8px); border: 1px solid color-mix(in oklab, var(--wood) 70%, black); }
+@utility feat-wall { background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--muted-foreground) 55%, var(--card)) 0 10px, var(--muted-foreground) 10px 11px); border: 1px solid var(--muted-foreground); }
+@utility feat-path { background: radial-gradient(circle at 30% 40%, color-mix(in oklab, var(--muted-foreground) 30%, transparent) 2px, transparent 3px) 0 0 / 9px 9px, color-mix(in oklab, var(--earth) 18%, var(--card)); border: 1px dashed color-mix(in oklab, var(--earth) 60%, transparent); }
+@utility feat-patio { background: linear-gradient(90deg, color-mix(in oklab, var(--muted-foreground) 30%, transparent) 1px, transparent 1px) 0 0 / 11px 11px, linear-gradient(color-mix(in oklab, var(--muted-foreground) 30%, transparent) 1px, transparent 1px) 0 0 / 11px 11px, color-mix(in oklab, var(--muted) 80%, var(--card)); border: 1px solid var(--border); }
+@utility feat-firepit { border-radius: 9999px; background: radial-gradient(circle, color-mix(in oklab, var(--destructive) 25%, var(--card)) 45%, color-mix(in oklab, var(--muted-foreground) 50%, var(--card)) 46%); border: 3px solid var(--muted-foreground); }
+@utility feat-shed { background: color-mix(in oklab, var(--wood) 30%, var(--card)); border: 2px solid var(--wood); }
+@utility feat-tree { border-radius: 9999px; background: color-mix(in oklab, var(--primary) 18%, transparent); border: 1px dashed var(--primary); }
+@utility feat-water { border-radius: 9999px; background: color-mix(in oklab, var(--pot) 20%, transparent); }
+@utility feat-compost { background: color-mix(in oklab, var(--earth) 35%, var(--card)); border: 1px solid var(--earth); }
+@utility feat-other { border: 1px dashed var(--muted-foreground); background: color-mix(in oklab, var(--muted) 60%, transparent); }

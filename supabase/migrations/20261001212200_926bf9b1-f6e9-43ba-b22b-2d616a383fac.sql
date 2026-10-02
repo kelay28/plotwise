@@ -1,0 +1,1 @@
+ALTER TABLE public.plantings ADD COLUMN IF NOT EXISTS stage text;

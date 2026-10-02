@@ -1,0 +1,1 @@
+ALTER TABLE public.plantings ADD COLUMN cell_w integer NOT NULL DEFAULT 1, ADD COLUMN cell_h integer NOT NULL DEFAULT 1;

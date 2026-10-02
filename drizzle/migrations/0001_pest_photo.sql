@@ -1,0 +1,1 @@
+ALTER TABLE public.pest_logs ADD COLUMN photo_id uuid REFERENCES public.garden_photos(id) ON DELETE SET NULL;
