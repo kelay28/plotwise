@@ -69,7 +69,7 @@ function Settings() {
           <Button variant="outline" className="w-full" disabled={busy !== null} onClick={exportData}>{busy === "export" ? "Preparing..." : "Export garden (.json)"}</Button>
           <Button variant="outline" className="w-full" disabled={busy !== null} onClick={() => fileRef.current?.click()}>{busy === "import" ? "Importing..." : "Import garden from .json"}</Button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void importData(file); }} />
-          <p className="text-xs text-muted-foreground">Backups include beds, plantings, notes, pests, plans and icons. Photos aren't included.</p>
+          <p className="text-xs text-muted-foreground">Backups include beds, blocked-off sections, plantings, notes, pests, plans and icons. Photos aren't included.</p>
           <Button variant="outline" className="w-full" onClick={async () => {
             try { await loadSampleGarden(); qc.invalidateQueries(); toast.success("Sample garden added"); } catch (e) { toast.error((e as Error).message); }
           }}>Add sample garden from sketch</Button>

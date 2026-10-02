@@ -52,6 +52,53 @@ export type Database = {
           },
         ]
       }
+      bed_sections: {
+        Row: {
+          bed_id: string
+          created_at: string
+          h: number
+          id: string
+          kind: string
+          label: string | null
+          user_id: string
+          w: number
+          x: number
+          y: number
+        }
+        Insert: {
+          bed_id: string
+          created_at?: string
+          h?: number
+          id?: string
+          kind?: string
+          label?: string | null
+          user_id?: string
+          w?: number
+          x: number
+          y: number
+        }
+        Update: {
+          bed_id?: string
+          created_at?: string
+          h?: number
+          id?: string
+          kind?: string
+          label?: string | null
+          user_id?: string
+          w?: number
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bed_sections_bed_id_fkey"
+            columns: ["bed_id"]
+            isOneToOne: false
+            referencedRelation: "beds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beds: {
         Row: {
           compact_x: number

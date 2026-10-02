@@ -10,6 +10,7 @@ export type BedNote = T["bed_notes"]["Row"];
 export type Profile = T["profiles"]["Row"];
 export type UserVariety = T["plant_varieties"]["Row"];
 export type YardFeature = T["yard_features"]["Row"];
+export type BedSection = T["bed_sections"]["Row"];
 
 async function uid() {
   const { data } = await supabase.auth.getUser();
@@ -45,11 +46,13 @@ export const useBedNotes = (bedId: string) =>
   useQuery({ queryKey: ["bed_notes", bedId], queryFn: async () => must(await supabase.from("bed_notes").select("*").eq("bed_id", bedId).order("noted_on", { ascending: false })) as BedNote[] });
 export const useFeatures = () =>
   useQuery({ queryKey: ["features"], queryFn: async () => must(await supabase.from("yard_features").select("*").order("created_at")) as YardFeature[] });
+export const useSections = () =>
+  useQuery({ queryKey: ["sections"], queryFn: async () => must(await supabase.from("bed_sections").select("*").order("created_at")) as BedSection[] });
 export const useUserVarieties = () =>
   useQuery({ queryKey: ["varieties"], queryFn: async () => must(await supabase.from("plant_varieties").select("*").order("name")) as UserVariety[] });
 
-type TableName = "beds" | "plantings" | "pest_logs" | "bed_notes" | "profiles" | "plant_varieties" | "yard_features";
-const keyFor: Record<TableName, string> = { beds: "beds", plantings: "plantings", pest_logs: "pests", bed_notes: "bed_notes", profiles: "profile", plant_varieties: "varieties", yard_features: "features" };
+type TableName = "beds" | "plantings" | "pest_logs" | "bed_notes" | "profiles" | "plant_varieties" | "yard_features" | "bed_sections";
+const keyFor: Record<TableName, string> = { beds: "beds", plantings: "plantings", pest_logs: "pests", bed_notes: "bed_notes", profiles: "profile", plant_varieties: "varieties", yard_features: "features", bed_sections: "sections" };
 
 export function useUpsert<N extends TableName>(table: N) {
   const qc = useQueryClient();
@@ -71,7 +74,7 @@ export function useRemove(table: TableName) {
     mutationFn: async (id: string) => must(await supabase.from(table).delete().eq("id", id)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [keyFor[table]] });
-      if (table === "beds") qc.invalidateQueries({ queryKey: ["plantings"] });
+      if (table === "beds") { qc.invalidateQueries({ queryKey: ["plantings"] }); qc.invalidateQueries({ queryKey: ["sections"] }); }
     },
   });
 }

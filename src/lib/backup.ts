@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 type Row = { id?: unknown; user_id?: unknown; bed_id?: unknown; planting_id?: unknown; zone?: unknown; garden_name?: unknown; yard_w?: unknown; yard_h?: unknown; [col: string]: unknown };
 
 // Insert order respects foreign keys (beds before plantings, plantings before pest_logs...).
-const TABLES = ["beds", "plant_varieties", "plantings", "bed_notes", "pest_logs", "yard_features", "planting_plans", "crop_icons", "plant_pictures"] as const;
+const TABLES = ["beds", "bed_sections", "plant_varieties", "plantings", "bed_notes", "pest_logs", "yard_features", "planting_plans", "crop_icons", "plant_pictures"] as const;
 type Table = (typeof TABLES)[number];
 
 const Backup = z
@@ -92,6 +92,7 @@ export async function restoreBackup(rows: (t: string) => Row[]) {
   const prepared: Record<Table, Row[]> = {
     beds: rows("beds").map((r) => ({ ...r, id: fresh(r.id) })),
     plant_varieties: rows("plant_varieties").map((r) => ({ ...r, id: fresh(r.id) })),
+    bed_sections: [],
     plantings: [],
     bed_notes: [],
     pest_logs: [],
@@ -102,6 +103,7 @@ export async function restoreBackup(rows: (t: string) => Row[]) {
   };
   // Rows that point at a bed are dropped if that bed isn't in the file.
   prepared.plantings = rows("plantings").flatMap((r) => (ref(r.bed_id) ? [{ ...r, bed_id: ref(r.bed_id), id: fresh(r.id) }] : []));
+  prepared.bed_sections = rows("bed_sections").flatMap((r) => (ref(r.bed_id) ? [{ ...r, bed_id: ref(r.bed_id), id: fresh(r.id) }] : []));
   prepared.bed_notes = rows("bed_notes").flatMap((r) => (ref(r.bed_id) ? [{ ...r, bed_id: ref(r.bed_id), id: fresh(r.id) }] : []));
   prepared.pest_logs = rows("pest_logs").map((r) => ({ ...r, id: fresh(r.id), bed_id: ref(r.bed_id), planting_id: ref(r.planting_id), photo_id: null }));
   prepared.planting_plans = rows("planting_plans").map((r) => ({ ...r, id: fresh(r.id), bed_id: ref(r.bed_id) }));

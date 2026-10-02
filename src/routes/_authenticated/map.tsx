@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type Bed, type YardFeature, useFeatures, useRemove, loadSampleGarden, useProfile, useBeds, usePests, usePlantings, useUpsert, useZone } from "@/lib/garden";
+import { type Bed, type YardFeature, useFeatures, useRemove, loadSampleGarden, useProfile, useBeds, usePests, usePlantings, useSections, useUpsert, useZone } from "@/lib/garden";
+import { sectionFill, sectionKind, sectionName } from "@/lib/sections";
 import { CustomIcon } from "@/components/CustomIcon";
 const FEATURE_ICONS = ["🌳", "🌲", "🌴", "🍎", "🍑", "🍒", "🌸", "🔥", "🪵", "🪨", "⛲", "🚰", "🛖", "🏠", "🏡", "🪑", "⛱️", "🐔", "🐝", "🐶", "♻️", "🧺", "🪣", "🚗", "📍"];
 import { fmt, harvestInfo, harvestUntil } from "@/lib/zones";
@@ -54,6 +55,7 @@ function MapPage() {
   const navigate = useNavigate();
   const beds = useBeds();
   const plantings = usePlantings();
+  const sections = useSections();
   const pests = usePests();
   const zone = useZone();
   const upsert = useUpsert("beds");
@@ -417,6 +419,7 @@ function MapPage() {
             {list.map((b) => {
               const p = shown(b);
               const cells = growing.filter((g) => g.bed_id === b.id);
+              const blocks = (sections.data ?? []).filter((s) => s.bed_id === b.id);
               const sz = sizes[b.id] ?? { w: b.w, h: b.h };
               const isPot = b.kind === "container";
               const potSize = Math.min(sz.w, sz.h) * FT * 0.8;
@@ -438,12 +441,17 @@ function MapPage() {
                         {cells[0] && <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[11px] font-semibold text-ink-foreground shadow group-hover/tip:block">{`${plantName(cells[0])}`}</span>}
                         {cells[0] && <PlantIcon slug={cells[0].crop_slug} color={cells[0].color} icon={cells[0].icon} size={potSize} />}
                       </div>
-                    ) : cells.map((c) => (
+                    ) : [...blocks.map((s) => (
+                      <div key={s.id} className="group/tip absolute flex items-center justify-center rounded-sm" style={{ left: s.x * FT, top: s.y * FT, width: s.w * FT, height: s.h * FT, background: sectionFill(s.kind) }}>
+                        <span className="pointer-events-none text-[10px] leading-none">{sectionKind(s.kind).emoji}</span>
+                        <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[11px] font-semibold text-ink-foreground shadow group-hover/tip:block">{sectionName(s)}</span>
+                      </div>
+                    )), ...cells.map((c) => (
                       <div key={c.id} className="group/tip absolute flex items-center justify-center" style={{ left: c.cell_x * FT, top: c.cell_y * FT, width: (c.cell_w ?? 1) * FT, height: (c.cell_h ?? 1) * FT }}>
                         <PlantIcon slug={c.crop_slug} color={c.color} icon={c.icon} size={Math.min(c.cell_w ?? 1, c.cell_h ?? 1) * FT - 6} />
                         <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[11px] font-semibold text-ink-foreground shadow group-hover/tip:block">{`${plantName(c)}`}</span>
                       </div>
-                    ))}
+                    ))]}
                     {activePestBeds.has(b.id) && <span className="absolute -right-1.5 -top-1.5 text-xs">🐛</span>}
                     {edit && (
                       <div

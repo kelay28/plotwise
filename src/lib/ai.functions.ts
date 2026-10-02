@@ -386,7 +386,7 @@ export const planPlantingDay = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { frostDates, inWindowNow } = await import("./zones");
-    const [{ data: beds }, { data: plants }, { data: prof }] =
+    const [{ data: beds }, { data: plants }, { data: prof }, { data: sections }] =
       await Promise.all([
         context.supabase
           .from("beds")
@@ -399,6 +399,7 @@ export const planPlantingDay = createServerFn({ method: "POST" })
           .select("zone")
           .eq("id", context.userId)
           .maybeSingle(),
+        context.supabase.from("bed_sections").select("bed_id, kind, label, w, h"),
       ]);
     const zone = prof?.zone ?? "7b";
     const day = new Date(data.date + "T12:00");
@@ -408,9 +409,12 @@ export const planPlantingDay = createServerFn({ method: "POST" })
     );
     const bedInfo = (beds ?? []).map((b) => {
       const mine = (plants ?? []).filter((p) => p.bed_id === b.id);
-      const used = mine
-        .filter((p) => p.status === "growing")
-        .reduce((s, p) => s + (p.cell_w ?? 1) * (p.cell_h ?? 1), 0);
+      const blocked = (sections ?? []).filter((s) => s.bed_id === b.id);
+      const used =
+        mine
+          .filter((p) => p.status === "growing")
+          .reduce((s, p) => s + (p.cell_w ?? 1) * (p.cell_h ?? 1), 0) +
+        blocked.reduce((s, x) => s + x.w * x.h, 0);
       return {
         name: b.name,
         kind: b.kind,
@@ -419,6 +423,7 @@ export const planPlantingDay = createServerFn({ method: "POST" })
         sun_hours: b.sun_hours,
         soil_notes: b.soil_notes,
         open_sq_ft: Math.max(0, b.w * b.h - used),
+        blocked_off: blocked.map((x) => `${x.label || x.kind} (${x.w * x.h} sq ft)`),
         growing: mine
           .filter((p) => p.status === "growing")
           .map((p) => p.crop_slug),
@@ -570,16 +575,18 @@ export const proposePlantings = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const [{ data: beds, error }, { data: plantings }] = await Promise.all([
+    const [{ data: beds, error }, { data: plantings }, { data: sections }] = await Promise.all([
       context.supabase.from("beds").select("id, name, kind, w, h, sun"),
       context.supabase
         .from("plantings")
         .select("bed_id, crop_slug, cell_x, cell_y, cell_w, cell_h")
         .eq("status", "growing"),
+      context.supabase.from("bed_sections").select("bed_id, kind, label, x, y, w, h"),
     ]);
     if (error) throw new Error(error.message);
-    const occ = (bid: string) =>
-      (plantings ?? [])
+    // Blocked-off sections (compost, amending...) count as taken squares, labelled so the AI can explain.
+    const occ = (bid: string) => [
+      ...(plantings ?? [])
         .filter((p) => p.bed_id === bid)
         .map((p) => ({
           crop: p.crop_slug,
@@ -587,7 +594,11 @@ export const proposePlantings = createServerFn({ method: "POST" })
           y: p.cell_y,
           w: p.cell_w,
           h: p.cell_h,
-        }));
+        })),
+      ...(sections ?? [])
+        .filter((s) => s.bed_id === bid)
+        .map((s) => ({ crop: `blocked: ${s.label || s.kind}`, x: s.x, y: s.y, w: s.w, h: s.h })),
+    ];
     const bedList = (beds ?? []).map((b) => ({
       id: b.id,
       name: b.name,

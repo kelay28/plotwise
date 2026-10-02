@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Planting, useBedNotes, useBeds, usePests, usePlantings, useRemove, useUpsert, useZone } from "@/lib/garden";
+import { type BedSection, type Planting, useBedNotes, useBeds, usePests, usePlantings, useRemove, useSections, useUpsert, useZone } from "@/lib/garden";
+import { SECTION_KINDS, type SectionKind, sectionFill, sectionKind, sectionName } from "@/lib/sections";
 import { aftercare, getCrop, PESTS, plantName } from "@/lib/crops";
 import { cn } from "@/lib/utils";
 import { fmt, fmtY, harvestInfo } from "@/lib/zones";
@@ -35,6 +36,7 @@ const rectOf = (s: { x0: number; y0: number; x1: number; y1: number }): Rect => 
 const inRect = (x: number, y: number, r: Rect) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 const overlaps = (p: Planting, r: Rect) =>
   p.cell_x < r.x + r.w && p.cell_x + (p.cell_w ?? 1) > r.x && p.cell_y < r.y + r.h && p.cell_y + (p.cell_h ?? 1) > r.y;
+const hitsSection = (s: BedSection, r: Rect) => s.x < r.x + r.w && s.x + s.w > r.x && s.y < r.y + r.h && s.y + s.h > r.y;
 const HEAVY = new Set(["tomato", "corn", "pumpkin", "winter-squash", "summer-squash", "zucchini", "broccoli", "cauliflower", "cabbage", "brussels-sprouts", "kale", "collards", "watermelon", "cantaloupe"]);
 
 function BedPage() {
@@ -50,6 +52,11 @@ function BedPage() {
   const upPlant = useUpsert("plantings");
   const rmPlant = useRemove("plantings");
   const upNote = useUpsert("bed_notes");
+  const sections = useSections();
+  const upSection = useUpsert("bed_sections");
+  const rmSection = useRemove("bed_sections");
+  const [mode, setMode] = useState<"plant" | "block">("plant");
+  const [secDraft, setSecDraft] = useState<{ id?: string; rect: Rect; kind: SectionKind; label: string } | null>(null);
   const [cell, setCell] = useState<Rect | null>(null);
   const [mv, setMv] = useState<{ id: string; x: number; y: number; dx: number; dy: number; moved: boolean } | null>(null);
   const [sel, setSel] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
@@ -58,7 +65,7 @@ function BedPage() {
   const [brush, setBrush] = useState<string | null>(null);
   const coarse = useCoarsePointer();
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
-  useEffect(() => setAnchor(null), [brush]);
+  useEffect(() => setAnchor(null), [brush, mode]);
 
   const bed = beds.data?.find((b) => b.id === bedId);
   useEffect(() => {
@@ -71,12 +78,16 @@ function BedPage() {
   const mine = (plantings.data ?? []).filter((p) => p.bed_id === bedId);
   const growing = mine.filter((p) => p.status === "growing" || p.status === "harvested");
   const past = mine.filter((p) => p.status !== "growing" && p.status !== "harvested");
+  const blocks = (sections.data ?? []).filter((s) => s.bed_id === bedId);
+  const blockAt = (r: Rect) => blocks.find((s) => hitsSection(s, r));
+  // A planting can't share squares with another planting or a blocked-off section.
+  const taken = (r: Rect, exceptId?: string) => growing.some((o) => o.id !== exceptId && overlaps(o, r)) || !!blockAt(r);
   // Find a spot for a resized plant that still covers its current square, growing left/up when it sits on an edge.
   const fitSpot = (p: Planting, w: number, h: number) => {
     for (let y = p.cell_y; y >= p.cell_y - h + 1; y--)
       for (let x = p.cell_x; x >= p.cell_x - w + 1; x--) {
         if (x < 0 || y < 0 || x + w > bed.w || y + h > bed.h) continue;
-        if (!growing.some((o) => o.id !== p.id && overlaps(o, { x, y, w, h }))) return { x, y };
+        if (!taken({ x, y, w, h }, p.id)) return { x, y };
       }
     return null;
   };
@@ -85,7 +96,7 @@ function BedPage() {
     const w = p.cell_w ?? 1, h = p.cell_h ?? 1;
     const spots: { x: number; y: number; d: number }[] = [];
     for (let y = 0; y + h <= bed.h; y++) for (let x = 0; x + w <= bed.w; x++)
-      if (!growing.some((o) => overlaps(o, { x, y, w, h }))) spots.push({ x, y, d: Math.abs(x - p.cell_x) + Math.abs(y - p.cell_y) });
+      if (!taken({ x, y, w, h })) spots.push({ x, y, d: Math.abs(x - p.cell_x) + Math.abs(y - p.cell_y) });
     return spots.sort((a, b) => a.d - b.d)[0] ?? null;
   };
   const current = cell ? growing.find((p) => p.cell_x === cell.x && p.cell_y === cell.y) : undefined;
@@ -106,8 +117,14 @@ function BedPage() {
               <SectionLabel>Planting grid · 1 sq = 1 ft</SectionLabel>
               {bedPests.length > 0 && <span className="rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-warning-foreground">Pest alert</span>}
             </div>
-            <CropTray value={brush} onChange={setBrush} recent={[...new Set([...mine].reverse().map((p) => p.crop_slug))].slice(0, 6)} />
-            <p className="mb-2 text-xs text-muted-foreground">{brush ? (coarse ? (anchor ? "Tap the opposite corner to fill a rectangle, or the same square again for just one." : `Tap a square to start planting ${getCrop(brush).name}.`) : `Drag across the squares to fill with ${getCrop(brush).name}. Release to plant.`) : "Pick a crop above and drag over squares to plant it, or tap a square to choose. Drag a plant to move it."}</p>
+            <div className="mb-2 inline-flex rounded-xl bg-muted p-1 text-xs font-semibold" role="tablist" aria-label="Grid mode">
+              {([["plant", "🌱 Plant"], ["block", "🚧 Block off area"]] as const).map(([m, label]) => (
+                <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
+                  className={cn("rounded-lg px-3 py-1.5 transition", mode === m ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground")}>{label}</button>
+              ))}
+            </div>
+            {mode === "plant" && <CropTray value={brush} onChange={setBrush} recent={[...new Set([...mine].reverse().map((p) => p.crop_slug))].slice(0, 6)} />}
+            <p className="mb-2 text-xs text-muted-foreground">{mode === "block" ? (coarse ? (anchor ? "Tap the opposite corner of the area to block off." : "Tap a corner of the area to block off (compost, amending, path...).") : "Drag across the squares to block off (compost, amending, path...). Tap a section to rename or remove it.") : brush ? (coarse ? (anchor ? "Tap the opposite corner to fill a rectangle, or the same square again for just one." : `Tap a square to start planting ${getCrop(brush).name}.`) : `Drag across the squares to fill with ${getCrop(brush).name}. Release to plant.`) : "Pick a crop above and drag over squares to plant it, or tap a square to choose. Drag a plant to move it."}</p>
             <div className="overflow-auto">
               <div
                 className={cn("grid select-none gap-1", !coarse && "touch-none")}
@@ -134,18 +151,23 @@ function BedPage() {
                     if (mv.x === p.cell_x && mv.y === p.cell_y) return;
                     const r = { x: mv.x, y: mv.y, w: p.cell_w ?? 1, h: p.cell_h ?? 1 };
                     if (growing.some((o) => o.id !== p.id && overlaps(o, r))) { toast.error("Another plant is already there"); return; }
+                    const blk = blockAt(r);
+                    if (blk) { toast.error(`That spot is blocked off (${sectionName(blk)})`); return; }
                     upPlant.mutate({ id: p.id, cell_x: mv.x, cell_y: mv.y } as never);
                     return;
                   }
                   if (!sel) return;
                   let r = rectOf(sel);
                   setSel(null);
-                  if (coarse && brush) {
+                  if (coarse && (brush || mode === "block")) {
                     if (!anchor) { setAnchor({ x: r.x, y: r.y }); return; }
                     r = rectOf({ x0: anchor.x, y0: anchor.y, x1: r.x, y1: r.y });
                     setAnchor(null);
                   }
                   if (growing.some((p) => overlaps(p, r))) { toast.error("That area overlaps a plant already there"); return; }
+                  const blk = blockAt(r);
+                  if (blk) { toast.error(`That area overlaps a blocked-off section (${sectionName(blk)})`); return; }
+                  if (mode === "block") { setSecDraft({ rect: r, kind: "compost", label: "" }); return; }
                   if (brush) {
                     upPlant.mutate({ crop_slug: brush, bed_id: bedId, cell_x: r.x, cell_y: r.y, cell_w: r.w, cell_h: r.h, method: "transplant", stage: "seedling" } as never, {
                       onSuccess: () => { toast.success(`Planted ${getCrop(brush).name}`, { action: { label: "Add details", onClick: () => setCell(r) } }); },
@@ -161,17 +183,32 @@ function BedPage() {
                 {Array.from({ length: bed.h }).flatMap((_, y) =>
                   Array.from({ length: bed.w }).map((_, x) => {
                     const inSel = (sel && inRect(x, y, rectOf(sel))) || (anchor?.x === x && anchor?.y === y);
-                    const bad = inSel && growing.some((p) => overlaps(p, rectOf(sel!)));
+                    const bad = inSel && !!sel && taken(rectOf(sel));
                     return (
                       <button key={`${x}-${y}`} data-x={x} data-y={y}
                         onPointerDown={(e) => { (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId); setSel({ x0: x, y0: y, x1: x, y1: y }); }}
-                        className={cn("flex items-center justify-center rounded-lg border-2 transition", bad ? "border-destructive bg-destructive/20" : inSel ? "border-primary bg-primary/20" : "border-accent bg-secondary/60 hover:border-primary")}
+                        className={cn("flex items-center justify-center rounded-lg border-2 transition", bad ? "border-destructive bg-destructive/20" : inSel ? (mode === "block" ? "border-ink bg-ink/15" : "border-primary bg-primary/20") : "border-accent bg-secondary/60 hover:border-primary")}
                         style={{ gridColumn: x + 1, gridRow: y + 1 }} aria-label="Empty square">
                         <span className="pointer-events-none text-muted-foreground/40">+</span>
                       </button>
                     );
                   }),
                 )}
+                {blocks.map((b) => {
+                  const k = sectionKind(b.kind);
+                  return (
+                    <button key={b.id}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => setSecDraft({ id: b.id, rect: { x: b.x, y: b.y, w: b.w, h: b.h }, kind: (b.kind in SECTION_KINDS ? b.kind : "other") as SectionKind, label: b.label ?? "" })}
+                      className="group/tip relative z-[5] flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border-2 border-dashed p-1 text-center transition hover:brightness-95"
+                      style={{ gridColumn: `${b.x + 1} / span ${b.w}`, gridRow: `${b.y + 1} / span ${b.h}`, background: sectionFill(b.kind), borderColor: `color-mix(in oklab, ${k.color} 60%, transparent)` }}
+                      aria-label={`Blocked off: ${sectionName(b)}`}>
+                      <span className="pointer-events-none text-lg leading-none">{k.emoji}</span>
+                      {(b.w > 1 || b.h > 1) && <span className="pointer-events-none line-clamp-2 rounded bg-card/85 px-1 text-[10px] font-bold leading-tight text-foreground">{sectionName(b)}</span>}
+                      <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[11px] font-semibold text-ink-foreground shadow group-hover/tip:block">{sectionName(b)}</span>
+                    </button>
+                  );
+                })}
                 {growing.map((p) => {
                   const w = p.cell_w ?? 1, h = p.cell_h ?? 1;
                   const moving = mv?.id === p.id;
@@ -270,6 +307,47 @@ function BedPage() {
           </Button>
         </Card>
       </div>
+
+      <Sheet open={!!secDraft} onOpenChange={(o) => !o && setSecDraft(null)}>
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
+          <SheetHeader><SheetTitle>{secDraft?.id ? "Blocked-off section" : `Block off ${secDraft ? `${secDraft.rect.w} x ${secDraft.rect.h} ft` : ""}`}</SheetTitle></SheetHeader>
+          {secDraft && (
+            <div className="mx-auto max-w-lg space-y-4 p-4">
+              <div>
+                <div className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">What's here</div>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(SECTION_KINDS) as SectionKind[]).map((k) => (
+                    <button key={k} onClick={() => setSecDraft({ ...secDraft, kind: k })}
+                      className={cn("flex items-center gap-1.5 rounded-xl border-2 px-3 py-2 text-sm font-semibold transition", secDraft.kind === k ? "border-primary bg-accent" : "border-transparent bg-muted hover:border-primary")}>
+                      <span>{SECTION_KINDS[k].emoji}</span>{SECTION_KINDS[k].name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="sec-label">Label (optional)</Label>
+                <Input id="sec-label" value={secDraft.label} maxLength={60} placeholder={`e.g. ${secDraft.kind === "amending" ? "Adding gypsum until May" : secDraft.kind === "compost" ? "Hot compost pile" : SECTION_KINDS[secDraft.kind].name}`}
+                  onChange={(e) => setSecDraft({ ...secDraft, label: e.target.value })} />
+              </div>
+              <p className="text-xs text-muted-foreground">Plants can't be placed here until you remove the section. {secDraft.rect.w * secDraft.rect.h} sq ft.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={upSection.isPending} onClick={() => {
+                  const { id, rect, kind, label } = secDraft;
+                  upSection.mutate({ ...(id ? { id } : {}), bed_id: bedId, x: rect.x, y: rect.y, w: rect.w, h: rect.h, kind, label: label.trim() || null } as never, {
+                    onSuccess: () => { toast.success(id ? "Section updated" : `Blocked off for ${label.trim() || SECTION_KINDS[kind].name}`); setSecDraft(null); },
+                    onError: (e) => toast.error(e.message),
+                  });
+                }}>{secDraft.id ? "Save" : "Block off"}</Button>
+                {secDraft.id && (
+                  <Button variant="ghost" className="text-destructive" onClick={() => rmSection.mutate(secDraft.id!, { onSuccess: () => { toast.success("Section removed - space is open for planting"); setSecDraft(null); } })}>
+                    <Trash2 className="mr-1 h-4 w-4" />Remove section
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={!!cell} onOpenChange={(o) => !o && setCell(null)}>
         <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
